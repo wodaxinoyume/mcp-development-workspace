@@ -118,7 +118,7 @@ class AutoToolCallerAPI:
             raise HTTPException(status_code=500, detail="LLM not initialized")
         
         try:
-            result = await self.llm.generate_str(
+            result = await self.llm.generate_str_with_tool_results(                
                 message=message,
                 request_params=RequestParams(
                     maxTokens=max_tokens,

@@ -150,7 +150,7 @@
         
         /* Tool call styling */
         .tool-call {
-            margin: 3px 0;
+            margin: 0;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             overflow: hidden;
@@ -158,18 +158,19 @@
         }
         
         .tool-call-header {
-            padding: 4px 8px;
+            padding: 2px 8px;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             background-color: #f8f9fa;
             border: none;
-            min-height: 24px;
+            min-height: 16px;
+            margin: 0;
         }
         
         .tool-call-header:hover {
-            background-color: #e9ecef;
+            background-color: #f8f9fa;
         }
         
         .tool-call-title {
@@ -177,7 +178,7 @@
             color: #495057;
             display: flex;
             align-items: center;
-            font-size: 13px;
+            font-size: 12px;
         }
         
         .tool-call-arrow {
@@ -195,19 +196,22 @@
             overflow: hidden;
             transition: max-height 0.3s ease;
             background-color: #ffffff;
+            margin: 0;
+            padding: 0;
         }
         
         .tool-call-content.expanded {
-            max-height: 300px;
+            max-height: 400px;
         }
         
         .tool-call-details {
-            padding: 8px;
-            border-top: 1px solid #e0e0e0;
+            padding: 0;
+            margin: 0;
+            border: none;
         }
         
         .tool-call-section {
-            margin-bottom: 8px;
+            margin-bottom: 0px;
         }
         
         .tool-call-section:last-child {
@@ -217,29 +221,31 @@
         .tool-call-section-title {
             font-weight: 600;
             color: #495057;
-            margin-bottom: 4px;
-            font-size: 12px;
+            margin-bottom: 3px;
+            font-size: 11px;
         }
         
         .tool-call-args {
             background-color: #f8f9fa;
-            padding: 6px;
+            padding: 4px 6px;
             border-radius: 3px;
             font-family: 'Courier New', monospace;
-            font-size: 11px;
+            font-size: 10px;
             white-space: pre-wrap;
             word-break: break-all;
             border: 1px solid #e9ecef;
+            max-height: 150px;
+            overflow-y: auto;
         }
         
         .tool-call-result {
             background-color: #e8f5e8;
-            padding: 6px;
+            padding: 4px 6px;
             border-radius: 3px;
-            font-size: 11px;
+            font-size: 10px;
             white-space: pre-wrap;
             border: 1px solid #d4edda;
-            max-height: 150px;
+            max-height: 300px;
             overflow-y: auto;
         }
     </style>
@@ -330,12 +336,33 @@
             // First, process tool calls before other formatting
             let processed = processToolCalls(content);
             
-            // Convert line breaks to <br> tags
+            // Convert line breaks to <br> tags, but avoid adding extra breaks around tool calls
             processed = processed.replace(/\n/g, '<br>');
             
-            // Convert markdown-style images to HTML img tags
+            // Remove ALL breaks around tool calls - be more aggressive
+            processed = processed.replace(/(<br>\s*)*<div class="tool-call"/g, '<div class="tool-call"');
+            processed = processed.replace(/<\/div>\s*(<br>\s*)*/g, '</div>');
+            
+            // Remove breaks inside tool call elements
+            processed = processed.replace(/<div class="tool-call"[^>]*>\s*(<br>\s*)*/g, function(match) {
+                return match.replace(/<br>\s*/g, '');
+            });
+            processed = processed.replace(/<div class="tool-call-header"[^>]*>\s*(<br>\s*)*/g, function(match) {
+                return match.replace(/<br>\s*/g, '');
+            });
+            processed = processed.replace(/<div class="tool-call-content"[^>]*>\s*(<br>\s*)*/g, function(match) {
+                return match.replace(/<br>\s*/g, '');
+            });
+            processed = processed.replace(/<div class="tool-call-details"[^>]*>\s*(<br>\s*)*/g, function(match) {
+                return match.replace(/<br>\s*/g, '');
+            });
+            processed = processed.replace(/<div class="tool-call-section"[^>]*>\s*(<br>\s*)*/g, function(match) {
+                return match.replace(/<br>\s*/g, '');
+            });
+            
+            // Convert markdown-style images to HTML img tags (without title)
             processed = processed.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 
-                '<div style="margin: 10px 0;"><img src="$2" alt="$1" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.style.display=\'none\'"><div style="font-size: 12px; color: #666; margin-top: 5px; text-align: center;">$1</div></div>');
+                '<div style="margin: 10px 0;"><img src="$2" alt="$1" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.style.display=\'none\'"></div>');
             
             // Convert markdown-style headers to HTML
             processed = processed.replace(/^### (.*$)/gm, '<h3 style="margin: 15px 0 10px 0; color: #2c3e50;">$1</h3>');
@@ -385,33 +412,12 @@
                     const parsedResult = JSON.parse(result);
                     formattedResult = JSON.stringify(parsedResult, null, 2);
                 } catch (e) {
-                    // If not JSON, display as plain text
+                    // If not JSON, display as plain text without truncation
                     formattedResult = result;
                 }
                 
                 // Create the tool call HTML with actual Response section
-                const toolCallHtml = `
-                    <div class="tool-call" id="${toolId}">
-                        <div class="tool-call-header" onclick="toggleToolCall('${toolId}')">
-                            <div class="tool-call-title">
-                                🔧 ${toolName}
-                            </div>
-                            <span class="tool-call-arrow">▶</span>
-                        </div>
-                        <div class="tool-call-content" id="${toolId}_content">
-                            <div class="tool-call-details">
-                                <div class="tool-call-section">
-                                    <div class="tool-call-section-title">📥 Arguments:</div>
-                                    <div class="tool-call-args">${JSON.stringify(parsedArgs, null, 2)}</div>
-                                </div>
-                                <div class="tool-call-section">
-                                    <div class="tool-call-section-title">📤 Response:</div>
-                                    <div class="tool-call-result">${formattedResult}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                const toolCallHtml = `<div class="tool-call" id="${toolId}"><div class="tool-call-header" onclick="toggleToolCall('${toolId}')"><div class="tool-call-title">🔧 ${toolName}</div><span class="tool-call-arrow">▶</span></div><div class="tool-call-content" id="${toolId}_content"><div class="tool-call-details"><div class="tool-call-section"><div class="tool-call-section-title">📥 Arguments:</div><div class="tool-call-args">${JSON.stringify(parsedArgs, null, 2)}</div></div><div class="tool-call-section"><div class="tool-call-section-title">📤 Response:</div><div class="tool-call-result">${formattedResult}</div></div></div></div></div>`;
                 
                 return toolCallHtml;
             });

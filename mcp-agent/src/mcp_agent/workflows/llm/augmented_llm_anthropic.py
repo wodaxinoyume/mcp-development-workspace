@@ -341,6 +341,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                                 request=tool_call_request, tool_call_id=tool_use_id
                             )
 
+                            # Store the tool result in the response for later use
+                            response._tool_result = result
+
                             message = self.from_mcp_tool_result(result, tool_use_id)
 
                             messages.append(message)
@@ -403,6 +406,79 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             res = "\n".join(final_text)
             span.set_attribute("response", res)
             return res
+
+    async def generate_str_with_tool_results(
+        self,
+        message,
+        request_params: RequestParams | None = None,
+    ) -> str:
+        """
+        Process a query using an LLM and available tools, including tool call results in the output.
+        This is a custom method that shows both tool call parameters and results.
+        """
+        tracer = get_tracer(self.context)
+        with tracer.start_as_current_span(
+            f"{self.__class__.__name__}.{self.name}.generate_str_with_tool_results"
+        ) as span:
+            span.set_attribute(GEN_AI_AGENT_NAME, self.agent.name)
+            self._annotate_span_for_generation_message(span, message)
+            if self.context.tracing_enabled and request_params:
+                AugmentedLLM.annotate_span_with_request_params(span, request_params)
+
+            # Use the original generate method to get detailed responses
+            responses: List[Message] = await self.generate(
+                message=message,
+                request_params=request_params,
+            )
+
+            final_text: List[str] = []
+
+            for response in responses:
+                for content in response.content:
+                    if content.type == "text":
+                        final_text.append(content.text)
+                    elif content.type == "tool_use":
+                        # Get the tool result from the response metadata if available
+                        tool_result = getattr(response, '_tool_result', None)
+                        if tool_result:
+                            # Format the tool result for display
+                            result_text = self._format_tool_result_for_display(tool_result)
+                            final_text.append(
+                                f"[Calling tool {content.name} with args {content.input}] [Tool result: {result_text}]"
+                            )
+                        else:
+                            final_text.append(
+                                f"[Calling tool {content.name} with args {content.input}]"
+                            )
+
+            res = "\n".join(final_text)
+            span.set_attribute("response", res)
+            return res
+
+    def _format_tool_result_for_display(self, result) -> str:
+        """
+        Format tool result for display in the final text.
+        """
+        try:
+            if hasattr(result, 'content') and result.content:
+                # Extract text content from the result
+                text_parts = []
+                for content in result.content:
+                    if hasattr(content, 'text'):
+                        text_parts.append(content.text)
+                    elif isinstance(content, str):
+                        text_parts.append(content)
+                
+                if text_parts:
+                    # Join all text parts without truncation
+                    full_text = ' '.join(text_parts)
+                    return full_text
+                else:
+                    return "No text content returned"
+            else:
+                return str(result)
+        except Exception as e:
+            return f"Error formatting result: {str(e)}"
 
     async def generate_structured(
         self,
