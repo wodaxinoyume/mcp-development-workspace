@@ -1,0 +1,16 @@
+execution_engine: asyncio
+logger:
+  transports: [file]
+  level: debug
+  path: "logs/mcp-agent.jsonl"
+  progress_display: false
+
+mcp:
+  servers:
+    met-museum:
+      command: "node"
+      args: ["../../mcp-servers/metmuseum-mcp/dist/index.js"]
+      description: "Search and get information about artworks from the Metropolitan Museum of Art"
+
+anthropic:
+  default_model: claude-sonnet-4-20250514

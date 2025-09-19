@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metropolitan Museum Assistant</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: 20%;
+        }
+        
+        .assistant-message {
+            background-color: #e9ecef;
+            color: #333;
+            margin-right: 20%;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .capabilities {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .capabilities h3 {
+            margin-top: 0;
+            color: #155724;
+        }
+        
+        .capabilities ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .capabilities li {
+            margin-bottom: 5px;
+        }
+        
+        /* Message content styling */
+        .message h1, .message h2, .message h3 {
+            margin: 15px 0 10px 0;
+            color: #2c3e50;
+        }
+        
+        .message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 10px 0;
+        }
+        
+        .message strong {
+            font-weight: bold;
+        }
+        
+        .message em {
+            font-style: italic;
+        }
+        
+        /* Tool call styling */
+        .tool-call {
+            margin: 3px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #f8f9fa;
+        }
+        
+        .tool-call-header {
+            padding: 4px 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8f9fa;
+            border: none;
+            min-height: 24px;
+        }
+        
+        .tool-call-header:hover {
+            background-color: #e9ecef;
+        }
+        
+        .tool-call-title {
+            font-weight: 500;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+        }
+        
+        .tool-call-arrow {
+            transition: transform 0.2s ease;
+            color: #6c757d;
+            font-size: 10px;
+        }
+        
+        .tool-call-arrow.expanded {
+            transform: rotate(90deg);
+        }
+        
+        .tool-call-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background-color: #ffffff;
+        }
+        
+        .tool-call-content.expanded {
+            max-height: 300px;
+        }
+        
+        .tool-call-details {
+            padding: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .tool-call-section {
+            margin-bottom: 8px;
+        }
+        
+        .tool-call-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tool-call-section-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        
+        .tool-call-args {
+            background-color: #f8f9fa;
+            padding: 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid #e9ecef;
+        }
+        
+        .tool-call-result {
+            background-color: #e8f5e8;
+            padding: 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            white-space: pre-wrap;
+            border: 1px solid #d4edda;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ Metropolitan Museum Assistant</h1>
+        
+        <div class="capabilities">
+            <h3>I can help you with:</h3>
+            <ul>
+                <li>Search for artworks and artists</li>
+                <li>Get detailed information about artworks</li>
+                <li>Browse museum collections</li>
+                <li>Explore art from different periods and styles</li>
+                <li>Learn about art history and cultural background</li>
+            </ul>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant-message">
+                <strong>Assistant:</strong> Hello! I'm the intelligent assistant for the Metropolitan Museum of Art. Please tell me what artworks or art-related information you'd like to know about, and I'll provide detailed help for you.
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            Processing your request...
+        </div>
+        
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Please enter your question..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        let isLoading = false;
+
+        // 检查 API 状态
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (!data.agent_initialized) {
+                    showError('API service not fully initialized, please try again later');
+                }
+            } catch (error) {
+                showError('Unable to connect to API service, please ensure the server is running');
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Add message to chat container
+        function addMessage(content, isUser = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+            
+            const prefix = isUser ? 'You' : 'Assistant';
+            
+            // Process content to handle line breaks and images
+            const processedContent = processMessageContent(content);
+            
+            messageDiv.innerHTML = `<strong>${prefix}:</strong> ${processedContent}`;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Process message content to handle formatting
+        function processMessageContent(content) {
+            if (!content) return '';
+            
+            // First, process tool calls before other formatting
+            let processed = processToolCalls(content);
+            
+            // Convert line breaks to <br> tags
+            processed = processed.replace(/\n/g, '<br>');
+            
+            // Convert markdown-style images to HTML img tags
+            processed = processed.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 
+                '<div style="margin: 10px 0;"><img src="$2" alt="$1" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.style.display=\'none\'"><div style="font-size: 12px; color: #666; margin-top: 5px; text-align: center;">$1</div></div>');
+            
+            // Convert markdown-style headers to HTML
+            processed = processed.replace(/^### (.*$)/gm, '<h3 style="margin: 15px 0 10px 0; color: #2c3e50;">$1</h3>');
+            processed = processed.replace(/^## (.*$)/gm, '<h2 style="margin: 20px 0 15px 0; color: #2c3e50;">$1</h2>');
+            processed = processed.replace(/^# (.*$)/gm, '<h1 style="margin: 25px 0 20px 0; color: #2c3e50;">$1</h1>');
+            
+            // Convert markdown-style bold text
+            processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert markdown-style italic text
+            processed = processed.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            return processed;
+        }
+
+        // Process tool calls and convert them to collapsible sections
+        function processToolCalls(content) {
+            // Enhanced pattern to match tool calls with results
+            // This pattern matches the actual MCP Agent output format
+            const toolCallPattern = /\[Calling tool ([^\s]+) with args \{([^}]+)\}\]\s*\[Tool result: ([^\]]+)\]/g;
+            
+            return content.replace(toolCallPattern, (match, toolName, args, result) => {
+                const toolId = 'tool_' + Math.random().toString(36).substr(2, 9);
+                
+                // Parse arguments
+                let parsedArgs;
+                try {
+                    let cleanArgs = args
+                        .replace(/'/g, '"')
+                        .replace(/(\w+):/g, '"$1":')
+                        .replace(/True/g, 'true')
+                        .replace(/False/g, 'false')
+                        .replace(/None/g, 'null');
+                    
+                    parsedArgs = JSON.parse('{' + cleanArgs + '}');
+                } catch (e) {
+                    parsedArgs = { 
+                        raw: args,
+                        note: "Could not parse arguments as JSON"
+                    };
+                }
+                
+                // Parse and format the result
+                let formattedResult;
+                try {
+                    // Try to parse as JSON first
+                    const parsedResult = JSON.parse(result);
+                    formattedResult = JSON.stringify(parsedResult, null, 2);
+                } catch (e) {
+                    // If not JSON, display as plain text
+                    formattedResult = result;
+                }
+                
+                // Create the tool call HTML with actual Response section
+                const toolCallHtml = `
+                    <div class="tool-call" id="${toolId}">
+                        <div class="tool-call-header" onclick="toggleToolCall('${toolId}')">
+                            <div class="tool-call-title">
+                                🔧 ${toolName}
+                            </div>
+                            <span class="tool-call-arrow">▶</span>
+                        </div>
+                        <div class="tool-call-content" id="${toolId}_content">
+                            <div class="tool-call-details">
+                                <div class="tool-call-section">
+                                    <div class="tool-call-section-title">📥 Arguments:</div>
+                                    <div class="tool-call-args">${JSON.stringify(parsedArgs, null, 2)}</div>
+                                </div>
+                                <div class="tool-call-section">
+                                    <div class="tool-call-section-title">📤 Response:</div>
+                                    <div class="tool-call-result">${formattedResult}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                return toolCallHtml;
+            });
+        }
+
+        // Toggle tool call visibility
+        function toggleToolCall(toolId) {
+            const content = document.getElementById(toolId + '_content');
+            const arrow = document.querySelector(`#${toolId} .tool-call-arrow`);
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                arrow.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                arrow.classList.add('expanded');
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const loading = document.getElementById('loading');
+            
+            const message = messageInput.value.trim();
+            if (!message || isLoading) return;
+
+            // Show user message
+            addMessage(message, true);
+            messageInput.value = '';
+            
+            // Show loading state
+            isLoading = true;
+            sendButton.disabled = true;
+            loading.style.display = 'block';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        max_tokens: 2048,
+                        temperature: 0.7
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addMessage(data.response);
+                } else {
+                    showError(data.error || 'Error occurred while processing request');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error, please check connection');
+            } finally {
+                // Hide loading state
+                isLoading = false;
+                sendButton.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Check API status when page loads
+        window.onload = function() {
+            checkAPIStatus();
+        };
+    </script>
+</body>
+</html>
