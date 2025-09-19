@@ -342,7 +342,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             )
 
                             # Store the tool result in the response for later use
-                            response._tool_result = result
+                            # Initialize _tool_results dict if it doesn't exist
+                            if not hasattr(response, '_tool_results'):
+                                response._tool_results = {}
+                            response._tool_results[tool_use_id] = result
 
                             message = self.from_mcp_tool_result(result, tool_use_id)
 
@@ -439,7 +442,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         final_text.append(content.text)
                     elif content.type == "tool_use":
                         # Get the tool result from the response metadata if available
-                        tool_result = getattr(response, '_tool_result', None)
+                        tool_results = getattr(response, '_tool_results', {})
+                        tool_result = tool_results.get(content.id) if tool_results else None
                         if tool_result:
                             # Format the tool result for display
                             result_text = self._format_tool_result_for_display(tool_result)
